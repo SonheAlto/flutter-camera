@@ -561,6 +561,8 @@ class MethodChannelCamera extends CameraPlatform {
         return 'medium';
       case ResolutionPreset.low:
         return 'low';
+      case ResolutionPreset.high4x3:
+        return 'high4x3';
     }
   }
 

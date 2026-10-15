@@ -1600,6 +1600,11 @@ class AndroidCameraCameraX extends CameraPlatform {
       case ResolutionPreset.ultraHigh:
         boundSize = CameraSize(width: 3840, height: 2160);
         aspectRatio = AspectRatio.ratio16To9;
+      case ResolutionPreset.high4x3:
+        // Hauseful patch: 4:3 at 1280x960, so the camera hardware produces
+        // photos at the final size with the sensor's full field of view.
+        boundSize = CameraSize(width: 1280, height: 960);
+        aspectRatio = AspectRatio.ratio4To3;
       case ResolutionPreset.max:
         // Automatically set strategy to choose highest available.
         resolutionStrategy = ResolutionStrategy.highestAvailableStrategy;
@@ -1643,6 +1648,9 @@ class AndroidCameraCameraX extends CameraPlatform {
       case ResolutionPreset.medium:
         videoQuality = VideoQuality.SD;
       case ResolutionPreset.high:
+      // Hauseful patch: CameraX has no 4:3 video quality; 4:3 is meant for
+      // photos, so video stays at HD.
+      case ResolutionPreset.high4x3:
         videoQuality = VideoQuality.HD;
       case ResolutionPreset.veryHigh:
         videoQuality = VideoQuality.FHD;

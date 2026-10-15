@@ -146,7 +146,17 @@ enum PlatformImageFileFormat { jpeg, heif }
 
 enum PlatformImageFormatGroup { bgra8888, yuv420 }
 
-enum PlatformResolutionPreset { low, medium, high, veryHigh, ultraHigh, max }
+enum PlatformResolutionPreset {
+  low,
+  medium,
+  high,
+  veryHigh,
+  ultraHigh,
+  max,
+
+  /// Hauseful patch: 4:3 photos at exactly 1280x960.
+  high4x3,
+}
 
 enum PlatformVideoStabilizationMode { off, standard, cinematic, cinematicExtended }
 

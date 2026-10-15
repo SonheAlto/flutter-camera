@@ -270,6 +270,27 @@ final class DefaultCamera: NSObject, Camera {
   private func setCaptureSessionPreset(
     _ resolutionPreset: PlatformResolutionPreset
   ) throws {
+    // Hauseful patch: handled ahead of the switch below, whose cases fall
+    // through into one another.
+    if resolutionPreset == .high4x3 {
+      guard
+        let format = smallestFourByThreeFormat(
+          atLeast: DefaultCamera.fourByThreePhotoSize, forCaptureDevice: captureDevice)
+      else {
+        // No 4:3 format is large enough; keep the camera usable at 16:9 720p.
+        try setCaptureSessionPreset(.high)
+        return
+      }
+      videoCaptureSession.sessionPreset = .inputPriority
+      try captureDevice.lockForConfiguration()
+      captureDevice.flutterActiveFormat = format
+      captureDevice.unlockForConfiguration()
+      let size = videoDimensionsConverter(format)
+      previewSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
+      audioCaptureSession.sessionPreset = videoCaptureSession.sessionPreset
+      return
+    }
+
     switch resolutionPreset {
     case .max:
       if let bestFormat = highestResolutionFormat(forCaptureDevice: captureDevice) {
@@ -333,6 +354,62 @@ final class DefaultCamera: NSObject, Camera {
     let size = videoDimensionsConverter(captureDevice.flutterActiveFormat)
     previewSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
     audioCaptureSession.sessionPreset = videoCaptureSession.sessionPreset
+  }
+
+  /// Hauseful patch: the size 4:3 photos are written at.
+  static let fourByThreePhotoSize = CMVideoDimensions(width: 1280, height: 960)
+
+  /// Hauseful patch: the longer side photos are written at for the presets with an exact size
+  /// (1280x720 for `.high`, 1280x960 for `.high4x3`), or nil to keep what the camera delivers.
+  private var exactPhotoLongSide: Int? {
+    switch mediaSettings.resolutionPreset {
+    case .high, .high4x3:
+      return 1280
+    default:
+      return nil
+    }
+  }
+
+  /// Hauseful patch: the 4:3 format with the fewest pixels that is still at least `minimum`
+  /// (in landscape), so photos come out of the camera as close to the final size as possible.
+  /// Preferred are formats with the same subtype as the current activeFormat.
+  private func smallestFourByThreeFormat(
+    atLeast minimum: CMVideoDimensions, forCaptureDevice captureDevice: CaptureDevice
+  ) -> CaptureDeviceFormat? {
+    let preferredSubType = CMFormatDescriptionGetMediaSubType(
+      captureDevice.flutterActiveFormat.formatDescription)
+    // These formats are compressed and lossy, and unsupported by the Flutter Engine.
+    let unsupportedSubTypes: [FourCharCode] = [
+      1_651_798_066  // Hex for 'btp2', or kCVPixelFormatType_96VersatileBayerPacked12
+    ]
+    var bestFormat: CaptureDeviceFormat? = nil
+    var bestPixelCount = UInt.max
+    var isBestSubTypePreferred = false
+
+    for format in captureDevice.flutterFormats {
+      let subType = CMFormatDescriptionGetMediaSubType(format.formatDescription)
+      if unsupportedSubTypes.contains(subType) {
+        continue
+      }
+      let resolution = videoDimensionsConverter(format)
+      let width = UInt(resolution.width)
+      let height = UInt(resolution.height)
+      guard width * 3 == height * 4,
+        width >= UInt(minimum.width), height >= UInt(minimum.height)
+      else {
+        continue
+      }
+      let pixelCount = width * height
+      let isSubTypePreferred = subType == preferredSubType
+      if pixelCount < bestPixelCount
+        || (pixelCount == bestPixelCount && isSubTypePreferred && !isBestSubTypePreferred)
+      {
+        bestFormat = format
+        bestPixelCount = pixelCount
+        isBestSubTypePreferred = isSubTypePreferred
+      }
+    }
+    return bestFormat
   }
 
   /// Finds the highest available non-square resolution in terms of pixel count for the given device.
@@ -770,6 +847,10 @@ final class DefaultCamera: NSObject, Camera {
     let savePhotoDelegate = SavePhotoDelegate(
       path: path,
       ioQueue: photoIOQueue,
+      // Hauseful patch: shrink JPEG photos to the preset's exact size in memory, before they
+      // are written, so nothing has to load the full photo again afterwards.
+      maxPixelSize: fileExtension == "jpg" ? exactPhotoLongSide : nil,
+      jpegQuality: CGFloat(imageQuality) / 100.0,
       completionHandler: { [weak self] path, error in
         guard let strongSelf = self else { return }
 
