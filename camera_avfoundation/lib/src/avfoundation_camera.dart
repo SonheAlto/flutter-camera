@@ -499,6 +499,10 @@ class AVFoundationCamera extends CameraPlatform {
         return PlatformResolutionPreset.low;
       case ResolutionPreset.high4x3:
         return PlatformResolutionPreset.high4x3;
+      case ResolutionPreset.veryHigh4x3:
+        return PlatformResolutionPreset.veryHigh4x3;
+      case ResolutionPreset.ultraHigh4x3:
+        return PlatformResolutionPreset.ultraHigh4x3;
     }
     // The enum comes from a different package, which could get a new value at
     // any time, so provide a fallback that ensures this won't break when used

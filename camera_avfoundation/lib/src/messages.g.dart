@@ -154,8 +154,10 @@ enum PlatformResolutionPreset {
   ultraHigh,
   max,
 
-  /// Hauseful patch: 4:3 photos at exactly 1280x960.
+  /// Hauseful patch: the 4:3 counterparts of high, veryHigh and ultraHigh.
   high4x3,
+  veryHigh4x3,
+  ultraHigh4x3,
 }
 
 enum PlatformVideoStabilizationMode { off, standard, cinematic, cinematicExtended }

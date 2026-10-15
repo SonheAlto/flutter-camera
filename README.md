@@ -8,13 +8,18 @@ Patched copies of three packages from the official Flutter `camera` plugin, used
 | `camera_android_camerax` | 0.7.2 |
 | `camera_avfoundation` | 0.10.3+1 |
 
-The app-facing `camera` package is not patched; it picks these up through the overrides. Only Android and iOS are supported. `camera_web` and the desktop implementations are not patched, so they don't compile against `ResolutionPreset.high4x3`; fhost doesn't target them.
+The app-facing `camera` package is not patched; it picks these up through the overrides. Only Android and iOS are supported. `camera_web` and the desktop implementations are not patched, so they don't compile against the new presets; fhost doesn't target them.
 
 ## What the patch adds
 
-- **`ResolutionPreset.high4x3`:** 4:3 photos captured at about 1280×960, straight from the camera hardware, with no reprocessing.
-  - **Android:** CameraX picks its 1280×960 JPEG output (4:3 aspect ratio strategy), or the closest 4:3 size the phone lists.
-  - **iOS:** the smallest 4:3 device format of at least 1280×960 is selected. Photos come out at that format's size: 1280×960 if the device has it, otherwise the next one up, typically 1440×1080.
+**4:3 counterparts of `high`, `veryHigh` and `ultraHigh`:** `ResolutionPreset.high4x3` (~1280×960), `veryHigh4x3` (~1920×1440) and `ultraHigh4x3` (~3264×2448). They keep the sensor's full field of view and are captured straight from the camera hardware, with no reprocessing, for photos and video.
+
+- **Android (Dart only):**
+  - Photos: CameraX is asked for the preset's size with a 4:3 aspect ratio strategy.
+  - Video: the 16:9 counterpart's quality (HD, FHD, UHD), with the `Recorder` set to 4:3.
+- **iOS:** the smallest 4:3 device format of at least the preset's size that isn't binned (binned formats look soft). Without one, it falls back to the 16:9 counterpart. Photos and video come out at that format's size.
+
+Every change is marked with a `Hauseful patch` comment.
 
 ## Branches
 

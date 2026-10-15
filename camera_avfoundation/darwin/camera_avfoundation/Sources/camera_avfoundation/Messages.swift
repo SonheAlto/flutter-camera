@@ -254,8 +254,10 @@ enum PlatformResolutionPreset: Int, CaseIterable {
   case veryHigh = 3
   case ultraHigh = 4
   case max = 5
-  /// Hauseful patch: 4:3 photos at exactly 1280x960.
+  /// Hauseful patch: the 4:3 counterparts of high, veryHigh and ultraHigh.
   case high4x3 = 6
+  case veryHigh4x3 = 7
+  case ultraHigh4x3 = 8
 }
 
 enum PlatformVideoStabilizationMode: Int, CaseIterable {

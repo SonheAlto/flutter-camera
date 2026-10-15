@@ -427,7 +427,13 @@ class AndroidCameraCameraX extends CameraPlatform {
     );
 
     // Configure VideoCapture and Recorder instances.
-    recorder = Recorder(qualitySelector: presetQualitySelector);
+    // Hauseful patch: record 4:3 video for the 4:3 presets.
+    recorder = Recorder(
+      aspectRatio: _isFourByThreePreset(mediaSettings?.resolutionPreset)
+          ? _cameraXAspectRatio4To3
+          : null,
+      qualitySelector: presetQualitySelector,
+    );
     videoCapture = VideoCapture.withOutput(
       videoOutput: recorder!,
       targetFpsRange: _targetFpsRange,
@@ -1600,10 +1606,16 @@ class AndroidCameraCameraX extends CameraPlatform {
       case ResolutionPreset.ultraHigh:
         boundSize = CameraSize(width: 3840, height: 2160);
         aspectRatio = AspectRatio.ratio16To9;
+      // Hauseful patch: the 4:3 presets, so the camera hardware produces
+      // photos at the final size with the sensor's full field of view.
       case ResolutionPreset.high4x3:
-        // Hauseful patch: 4:3 at 1280x960, so the camera hardware produces
-        // photos at the final size with the sensor's full field of view.
         boundSize = CameraSize(width: 1280, height: 960);
+        aspectRatio = AspectRatio.ratio4To3;
+      case ResolutionPreset.veryHigh4x3:
+        boundSize = CameraSize(width: 1920, height: 1440);
+        aspectRatio = AspectRatio.ratio4To3;
+      case ResolutionPreset.ultraHigh4x3:
+        boundSize = CameraSize(width: 3264, height: 2448);
         aspectRatio = AspectRatio.ratio4To3;
       case ResolutionPreset.max:
         // Automatically set strategy to choose highest available.
@@ -1635,6 +1647,15 @@ class AndroidCameraCameraX extends CameraPlatform {
     );
   }
 
+  /// Hauseful patch: CameraX's `AspectRatio.RATIO_4_3`, as the Recorder takes it.
+  static const int _cameraXAspectRatio4To3 = 0;
+
+  /// Hauseful patch: whether [preset] is one of the 4:3 presets.
+  bool _isFourByThreePreset(ResolutionPreset? preset) =>
+      preset == ResolutionPreset.high4x3 ||
+      preset == ResolutionPreset.veryHigh4x3 ||
+      preset == ResolutionPreset.ultraHigh4x3;
+
   /// Returns the [QualitySelector] that maps to the specified resolution
   /// preset for the camera used only for video capture.
   ///
@@ -1647,14 +1668,17 @@ class AndroidCameraCameraX extends CameraPlatform {
       // 240p is not supported by CameraX.
       case ResolutionPreset.medium:
         videoQuality = VideoQuality.SD;
+      // Hauseful patch: each 4:3 preset records at its 16:9 counterpart's
+      // quality; the Recorder's aspect ratio makes it 4:3 (see
+      // _isFourByThreePreset).
       case ResolutionPreset.high:
-      // Hauseful patch: CameraX has no 4:3 video quality; 4:3 is meant for
-      // photos, so video stays at HD.
       case ResolutionPreset.high4x3:
         videoQuality = VideoQuality.HD;
       case ResolutionPreset.veryHigh:
+      case ResolutionPreset.veryHigh4x3:
         videoQuality = VideoQuality.FHD;
       case ResolutionPreset.ultraHigh:
+      case ResolutionPreset.ultraHigh4x3:
         videoQuality = VideoQuality.UHD;
       case ResolutionPreset.max:
         videoQuality = VideoQuality.highest;

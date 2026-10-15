@@ -270,15 +270,15 @@ final class DefaultCamera: NSObject, Camera {
   private func setCaptureSessionPreset(
     _ resolutionPreset: PlatformResolutionPreset
   ) throws {
-    // Hauseful patch: handled ahead of the switch below, whose cases fall
+    // Hauseful patch: the 4:3 presets are handled ahead of the switch below, whose cases fall
     // through into one another.
-    if resolutionPreset == .high4x3 {
+    if let target = DefaultCamera.fourByThreeTarget(for: resolutionPreset) {
       guard
         let format = smallestFourByThreeFormat(
-          atLeast: DefaultCamera.fourByThreePhotoSize, forCaptureDevice: captureDevice)
+          atLeast: target.minimumSize, forCaptureDevice: captureDevice)
       else {
-        // No 4:3 format is large enough; keep the camera usable at 16:9 720p.
-        try setCaptureSessionPreset(.high)
+        // No 4:3 format is large enough; keep the camera usable at the 16:9 counterpart.
+        try setCaptureSessionPreset(target.fallback)
         return
       }
       videoCaptureSession.sessionPreset = .inputPriority
@@ -356,14 +356,28 @@ final class DefaultCamera: NSObject, Camera {
     audioCaptureSession.sessionPreset = videoCaptureSession.sessionPreset
   }
 
-  /// Hauseful patch: the smallest size 4:3 photos are taken at. Photos come out at the
-  /// selected format's own size (1280x960 when the device has it, otherwise the next 4:3 size
-  /// up, such as 1440x1080), with no reprocessing.
-  static let fourByThreePhotoSize = CMVideoDimensions(width: 1280, height: 960)
+  /// Hauseful patch: for a 4:3 preset, the smallest format size it accepts and the 16:9 preset
+  /// to fall back to when the device has no such format; nil for every other preset. Photos and
+  /// videos come out at the selected format's own size, with no reprocessing.
+  static func fourByThreeTarget(for preset: PlatformResolutionPreset)
+    -> (minimumSize: CMVideoDimensions, fallback: PlatformResolutionPreset)?
+  {
+    switch preset {
+    case .high4x3:
+      return (CMVideoDimensions(width: 1280, height: 960), .high)
+    case .veryHigh4x3:
+      return (CMVideoDimensions(width: 1920, height: 1440), .veryHigh)
+    case .ultraHigh4x3:
+      return (CMVideoDimensions(width: 3264, height: 2448), .ultraHigh)
+    default:
+      return nil
+    }
+  }
 
   /// Hauseful patch: the 4:3 format with the fewest pixels that is still at least `minimum`
   /// (in landscape), so photos come out of the camera as close to the final size as possible.
-  /// Preferred are formats with the same subtype as the current activeFormat.
+  /// Binned formats are skipped: they merge sensor pixels and look soft. Preferred are formats
+  /// with the same subtype as the current activeFormat.
   private func smallestFourByThreeFormat(
     atLeast minimum: CMVideoDimensions, forCaptureDevice captureDevice: CaptureDevice
   ) -> CaptureDeviceFormat? {
@@ -386,7 +400,8 @@ final class DefaultCamera: NSObject, Camera {
       let width = UInt(resolution.width)
       let height = UInt(resolution.height)
       guard width * 3 == height * 4,
-        width >= UInt(minimum.width), height >= UInt(minimum.height)
+        width >= UInt(minimum.width), height >= UInt(minimum.height),
+        !format.avFormat.isVideoBinned
       else {
         continue
       }

@@ -26,10 +26,17 @@ enum ResolutionPreset {
   /// The highest resolution available.
   max,
 
-  /// ~1280x960, 4:3, with the sensor's full field of view. Platforms pick the
-  /// closest 4:3 size of at least 1280x960 (iOS often has 1440x1080 instead).
-  ///
-  /// Hauseful patch: not part of the official plugin. Only the Android
-  /// (CameraX) and iOS implementations handle it.
+  // Hauseful patch: the 4:3 counterparts of high, veryHigh and ultraHigh, with
+  // the sensor's full field of view. Not part of the official plugin; only the
+  // Android (CameraX) and iOS implementations handle them. Platforms pick the
+  // closest 4:3 size, and iOS skips binned formats, which look soft.
+
+  /// ~1280x960, 4:3 (iOS: 1920x1440, its smallest 4:3 format that isn't binned).
   high4x3,
+
+  /// ~1920x1440, 4:3.
+  veryHigh4x3,
+
+  /// ~3264x2448 (8 MP, the pixel count of 4K), 4:3.
+  ultraHigh4x3,
 }
