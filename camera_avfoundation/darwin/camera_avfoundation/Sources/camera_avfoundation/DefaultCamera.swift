@@ -356,19 +356,10 @@ final class DefaultCamera: NSObject, Camera {
     audioCaptureSession.sessionPreset = videoCaptureSession.sessionPreset
   }
 
-  /// Hauseful patch: the size 4:3 photos are written at.
+  /// Hauseful patch: the smallest size 4:3 photos are taken at. Photos come out at the
+  /// selected format's own size (1280x960 when the device has it, otherwise the next 4:3 size
+  /// up, such as 1440x1080), with no reprocessing.
   static let fourByThreePhotoSize = CMVideoDimensions(width: 1280, height: 960)
-
-  /// Hauseful patch: the longer side photos are written at for the presets with an exact size
-  /// (1280x720 for `.high`, 1280x960 for `.high4x3`), or nil to keep what the camera delivers.
-  private var exactPhotoLongSide: Int? {
-    switch mediaSettings.resolutionPreset {
-    case .high, .high4x3:
-      return 1280
-    default:
-      return nil
-    }
-  }
 
   /// Hauseful patch: the 4:3 format with the fewest pixels that is still at least `minimum`
   /// (in landscape), so photos come out of the camera as close to the final size as possible.
@@ -847,10 +838,6 @@ final class DefaultCamera: NSObject, Camera {
     let savePhotoDelegate = SavePhotoDelegate(
       path: path,
       ioQueue: photoIOQueue,
-      // Hauseful patch: shrink JPEG photos to the preset's exact size in memory, before they
-      // are written, so nothing has to load the full photo again afterwards.
-      maxPixelSize: fileExtension == "jpg" ? exactPhotoLongSide : nil,
-      jpegQuality: CGFloat(imageQuality) / 100.0,
       completionHandler: { [weak self] path, error in
         guard let strongSelf = self else { return }
 

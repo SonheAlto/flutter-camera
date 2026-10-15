@@ -26,7 +26,8 @@ enum ResolutionPreset {
   /// The highest resolution available.
   max,
 
-  /// 1280x960, 4:3. Photos come out at exactly this size on Android and iOS.
+  /// ~1280x960, 4:3, with the sensor's full field of view. Platforms pick the
+  /// closest 4:3 size of at least 1280x960 (iOS often has 1440x1080 instead).
   ///
   /// Hauseful patch: not part of the official plugin. Only the Android
   /// (CameraX) and iOS implementations handle it.

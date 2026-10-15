@@ -12,10 +12,9 @@ The app-facing `camera` package is not patched; it picks these up through the ov
 
 ## What the patch adds
 
-- **`ResolutionPreset.high4x3`:** 4:3 photos captured at exactly 1280×960.
-  - **Android:** CameraX picks its 1280×960 JPEG output (4:3 aspect ratio strategy), so the phone's hardware produces the final size.
-  - **iOS:** the smallest 4:3 device format of at least 1280×960 is selected, and the photo is shrunk to exactly 1280×960 in memory before it is written.
-- **iOS `high` photos are written at exactly 1280×720.** Any larger photo the format delivers is shrunk the same way.
+- **`ResolutionPreset.high4x3`:** 4:3 photos captured at about 1280×960, straight from the camera hardware, with no reprocessing.
+  - **Android:** CameraX picks its 1280×960 JPEG output (4:3 aspect ratio strategy), or the closest 4:3 size the phone lists.
+  - **iOS:** the smallest 4:3 device format of at least 1280×960 is selected. Photos come out at that format's size: 1280×960 if the device has it, otherwise the next one up, typically 1440×1080.
 
 ## Branches
 

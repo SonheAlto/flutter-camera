@@ -5,7 +5,6 @@
 import AVFoundation
 import Flutter
 import Foundation
-import ImageIO
 
 /// The completion handler block for save photo operations.
 /// Can be called from either main queue or IO queue.
@@ -26,13 +25,6 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
   /// The completion handler block for capture and save photo operations.
   let completionHandler: SavePhotoDelegateCompletionHandler
 
-  /// Hauseful patch: when set, a larger JPEG photo is shrunk so its longer side is this many
-  /// pixels before it is written.
-  private let maxPixelSize: Int?
-
-  /// Hauseful patch: the JPEG quality, from 0 to 1, a shrunk photo is encoded with.
-  private let jpegQuality: CGFloat
-
   /// The path for captured photo file.
   /// Exposed for unit tests to verify the captured photo file path.
   var filePath: String {
@@ -47,14 +39,10 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
   init(
     path: String,
     ioQueue: DispatchQueue,
-    maxPixelSize: Int? = nil,
-    jpegQuality: CGFloat = 1,
     completionHandler: @escaping SavePhotoDelegateCompletionHandler
   ) {
     self.path = path
     self.ioQueue = ioQueue
-    self.maxPixelSize = maxPixelSize
-    self.jpegQuality = jpegQuality
     self.completionHandler = completionHandler
     super.init()
   }
@@ -76,65 +64,13 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
       guard let strongSelf = self else { return }
 
       do {
-        var data = photoDataProvider()
-        if let maxPixelSize = strongSelf.maxPixelSize, let photo = data as? Data,
-          let shrunk = SavePhotoDelegate.shrinkJPEG(
-            photo, maxPixelSize: maxPixelSize, quality: strongSelf.jpegQuality)
-        {
-          data = shrunk
-        }
+        let data = photoDataProvider()
         try data?.writeToPath(strongSelf.path, options: .atomic)
         strongSelf.completionHandler(strongSelf.path, nil)
       } catch {
         strongSelf.completionHandler(nil, error)
       }
     }
-  }
-
-  /// Hauseful patch: re-encodes `jpeg` so its longer side is `maxPixelSize`, keeping its
-  /// metadata (orientation included, since the pixels are not rotated). Returns nil when the
-  /// photo is already that small or can't be processed, so the original is written instead.
-  static func shrinkJPEG(_ jpeg: Data, maxPixelSize: Int, quality: CGFloat) -> Data? {
-    guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
-      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-      let width = properties[kCGImagePropertyPixelWidth] as? Int,
-      let height = properties[kCGImagePropertyPixelHeight] as? Int,
-      max(width, height) > maxPixelSize
-    else {
-      return nil
-    }
-    let thumbnailOptions: [CFString: Any] = [
-      kCGImageSourceCreateThumbnailFromImageAlways: true,
-      kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-      kCGImageSourceCreateThumbnailWithTransform: false,
-    ]
-    guard
-      let image = CGImageSourceCreateThumbnailAtIndex(
-        source, 0, thumbnailOptions as CFDictionary)
-    else {
-      return nil
-    }
-    let output = NSMutableData()
-    guard
-      let destination = CGImageDestinationCreateWithData(
-        output, "public.jpeg" as CFString, 1, nil)
-    else {
-      return nil
-    }
-    var outputProperties = properties
-    outputProperties[kCGImageDestinationLossyCompressionQuality] = quality
-    outputProperties[kCGImagePropertyPixelWidth] = image.width
-    outputProperties[kCGImagePropertyPixelHeight] = image.height
-    if var exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
-      exif[kCGImagePropertyExifPixelXDimension] = image.width
-      exif[kCGImagePropertyExifPixelYDimension] = image.height
-      outputProperties[kCGImagePropertyExifDictionary] = exif
-    }
-    CGImageDestinationAddImage(destination, image, outputProperties as CFDictionary)
-    guard CGImageDestinationFinalize(destination) else {
-      return nil
-    }
-    return output as Data
   }
 
   func photoOutput(
