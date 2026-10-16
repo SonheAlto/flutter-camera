@@ -19,6 +19,8 @@ The app-facing `camera` package is not patched; it picks these up through the ov
   - Video: the 16:9 counterpart's quality (HD, FHD, UHD), with the `Recorder` set to 4:3.
 - **iOS:** the smallest 4:3 device format of at least the preset's size that isn't binned (binned formats look soft). Without one, it falls back to the 16:9 counterpart. Photos and video come out at that format's size.
 
+**Android preview stabilization:** on phones that support Camera2's `PREVIEW_STABILIZATION` (Android 13+), it is offered as `VideoStabilizationMode.level2`. The official plugin only maps Camera2's "on" (`level1`).
+
 Every change is marked with a `Hauseful patch` comment.
 
 ## Branches

@@ -958,7 +958,12 @@ class AndroidCameraCameraX extends CameraPlatform {
           VideoStabilizationMode.off: 0
         // https://developer.android.com/reference/android/hardware/camera2/CameraMetadata#CONTROL_VIDEO_STABILIZATION_MODE_ON
         else if (controlMode == 1)
-          VideoStabilizationMode.level1: 1,
+          VideoStabilizationMode.level1: 1
+        // Hauseful patch: Android 13+ preview stabilization, which steadies the
+        // preview as well as the recording, more strongly than ON.
+        // https://developer.android.com/reference/android/hardware/camera2/CameraMetadata#CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION
+        else if (controlMode == 2)
+          VideoStabilizationMode.level2: 2,
     };
 
     return modes;
