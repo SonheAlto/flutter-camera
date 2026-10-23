@@ -12,6 +12,8 @@ The app-facing `camera` package is not patched; it picks these up through the ov
 
 ## What the patch adds
 
+The full, per-file list of changes is in [PATCHES.md](PATCHES.md). A summary:
+
 **4:3 counterparts of `high`, `veryHigh` and `ultraHigh`:** `ResolutionPreset.high4x3` (~1280×960), `veryHigh4x3` (~1920×1440) and `ultraHigh4x3` (~3264×2448). They keep the sensor's full field of view and are captured straight from the camera hardware, with no reprocessing, for photos and video.
 
 - **Android (Dart only):**
