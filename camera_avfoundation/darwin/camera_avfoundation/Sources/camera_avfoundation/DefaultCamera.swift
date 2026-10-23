@@ -211,7 +211,7 @@ final class DefaultCamera: NSObject, Camera {
       mediaSettingsAVWrapper.beginConfiguration(for: videoCaptureSession)
       defer { mediaSettingsAVWrapper.commitConfiguration(for: videoCaptureSession) }
 
-      try setCaptureSessionPreset(mediaSettings.resolutionPreset)
+      try setCaptureSessionPreset(mediaSettings.resolutionPreset, deviceIsLocked: true)
 
       (captureDevice.flutterActiveFormat, framesPerSecond) = FormatUtils.findBestFormat(
         for: captureDevice,
@@ -268,7 +268,8 @@ final class DefaultCamera: NSObject, Camera {
   // fallback to lower resolution presets.
   // If none can be selected there is error condition.
   private func setCaptureSessionPreset(
-    _ resolutionPreset: PlatformResolutionPreset
+    _ resolutionPreset: PlatformResolutionPreset,
+    deviceIsLocked: Bool = false
   ) throws {
     // Hauseful patch: the 4:3 presets are handled ahead of the switch below, whose cases fall
     // through into one another.
@@ -278,13 +279,19 @@ final class DefaultCamera: NSObject, Camera {
           atLeast: target.minimumSize, forCaptureDevice: captureDevice)
       else {
         // No 4:3 format is large enough; keep the camera usable at the 16:9 counterpart.
-        try setCaptureSessionPreset(target.fallback)
+        try setCaptureSessionPreset(target.fallback, deviceIsLocked: deviceIsLocked)
         return
       }
       videoCaptureSession.sessionPreset = .inputPriority
-      try captureDevice.lockForConfiguration()
-      captureDevice.flutterActiveFormat = format
-      captureDevice.unlockForConfiguration()
+      // Hauseful patch: with a frame rate set, the caller already holds the device lock; locking
+      // again here would unlock it early, before the frame duration is set.
+      if deviceIsLocked {
+        captureDevice.flutterActiveFormat = format
+      } else {
+        try captureDevice.lockForConfiguration()
+        captureDevice.flutterActiveFormat = format
+        captureDevice.unlockForConfiguration()
+      }
       let size = videoDimensionsConverter(format)
       previewSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
       audioCaptureSession.sessionPreset = videoCaptureSession.sessionPreset

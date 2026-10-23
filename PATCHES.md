@@ -1,6 +1,6 @@
 # What this fork changes
 
-Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, 178 added lines, 4 replaced.
+Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, about 180 added lines, a few replaced.
 
 | Package | Upstream version |
 |---|---|
@@ -81,6 +81,7 @@ On iOS, the official presets set an `AVCaptureSession` preset, such as `.hd1280x
 
 - **`smallestFourByThreeFormat`:** from the camera's formats it keeps those that are exactly 4:3, at least the minimum size, and **not binned** (binned formats merge sensor pixels and look soft, e.g. 1440×1080 on the iPhone 17 main camera). From those it picks the one with the fewest pixels, preferring the same pixel format subtype as the current one. It skips the compressed `btp2` format the Flutter engine can't use, as the official code does.
 - **Fallback:** if no format qualifies, the camera uses the 16:9 counterpart instead, so it keeps working.
+- **Frame rate:** when a frame rate is set, the official startup code locks the camera device before applying the preset, then sets the frame duration. `setCaptureSessionPreset` takes a `deviceIsLocked` flag, and the 4:3 branch skips its own lock/unlock when the caller already holds the lock. Locking twice could release the device early, before the frame duration is set. The format search for the frame rate only considers formats of the same size, so it never swaps in a binned one.
 
 **Generated files** (`Messages.swift`, `lib/src/messages.g.dart`, `pigeons/messages.dart`, plus the mapping in `lib/src/avfoundation_camera.dart`)
 - `PlatformResolutionPreset` gets the three new values (`high4x3 = 6`, `veryHigh4x3 = 7`, `ultraHigh4x3 = 8`), and `_pigeonResolutionPreset` maps the Dart presets to them.
