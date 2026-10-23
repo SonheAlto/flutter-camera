@@ -1,6 +1,6 @@
 # What this fork changes
 
-Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, about 180 added lines, a few replaced.
+Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, 187 added lines, 6 replaced.
 
 | Package | Upstream version |
 |---|---|
