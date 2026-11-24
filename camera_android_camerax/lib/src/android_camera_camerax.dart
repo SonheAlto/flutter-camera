@@ -433,6 +433,9 @@ class AndroidCameraCameraX extends CameraPlatform {
           ? _cameraXAspectRatio4To3
           : null,
       qualitySelector: presetQualitySelector,
+      // Hauseful patch: honor MediaSettings.videoBitrate, as the official
+      // plugin does from 0.7.5 on.
+      targetVideoEncodingBitRate: mediaSettings?.videoBitrate,
     );
     videoCapture = VideoCapture.withOutput(
       videoOutput: recorder!,

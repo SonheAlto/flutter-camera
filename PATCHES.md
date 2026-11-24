@@ -1,6 +1,6 @@
 # What this fork changes
 
-Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, 187 added lines, 6 replaced.
+Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, 190 added lines, 6 replaced.
 
 | Package | Upstream version |
 |---|---|
@@ -26,6 +26,7 @@ git diff upstream main -- camera_platform_interface camera_android_camerax camer
 2. **4:3 video on Android**, for those presets.
 3. **iOS picks a full-detail 4:3 camera format** for them, skipping the soft "binned" ones.
 4. **Android preview stabilization** (Android 13+) offered as a second stabilization level.
+5. **Android honors the video bitrate** passed in `MediaSettings.videoBitrate`.
 
 Nothing else is changed: capture, focus, zoom, flash and every other behavior are the official code.
 
@@ -63,6 +64,10 @@ One file changed, `lib/src/android_camera_camerax.dart`, in Dart only. There's n
 - Official: of Camera2's stabilization modes, only "on" (value 1) is exposed, as `level1`.
 - Patched: Camera2's `PREVIEW_STABILIZATION` (value 2) is also exposed, as `level2`, on phones that list it. It steadies the preview as well as the recording, more strongly than "on".
 - Only modes the phone itself lists are exposed, so phones without it are unaffected.
+
+**Video bitrate** (the `Recorder` setup)
+- Official 0.7.2: `MediaSettings.videoBitrate` is never passed on, so CameraX uses the bitrate of the phone's own recording profile for the chosen quality.
+- Patched: it is passed to the `Recorder` as `targetVideoEncodingBitRate`, the same one-line change the official plugin made in 0.7.5. Without a bitrate, nothing changes. `audioBitrate` is still ignored on Android.
 
 ## 3. iOS: `camera_avfoundation`
 
