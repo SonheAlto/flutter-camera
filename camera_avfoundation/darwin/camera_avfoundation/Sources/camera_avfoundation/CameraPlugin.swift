@@ -371,6 +371,22 @@ extension CameraPlugin: CameraApi {
     }
   }
 
+  // Hauseful patch: photo capture options.
+  func takePictureWithOptions(
+    maxLongSide: Int64?, jpegQuality: Int64?, rotationDegrees: Int64, latitude: Double?,
+    longitude: Double?, completion: @escaping (Result<String, any Error>) -> Void
+  ) {
+    let options = PhotoCaptureOptions(
+      maxLongSide: maxLongSide.map { Int($0) },
+      jpegQuality: jpegQuality.map { Int($0) },
+      rotationDegrees: Int(rotationDegrees),
+      latitude: latitude,
+      longitude: longitude)
+    captureSessionQueue.async { [weak self] in
+      self?.camera?.captureToFile(options: options, completion: completion)
+    }
+  }
+
   func prepareForVideoRecording(completion: @escaping (Result<Void, any Error>) -> Void) {
     captureSessionQueue.async { [weak self] in
       self?.camera?.setUpCaptureSessionForAudioIfNeeded()

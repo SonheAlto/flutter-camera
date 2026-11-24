@@ -4247,7 +4247,8 @@ abstract class PigeonApiImageCapture(
   abstract fun pigeon_defaultConstructor(
       resolutionSelector: androidx.camera.core.resolutionselector.ResolutionSelector?,
       targetRotation: Long?,
-      flashMode: CameraXFlashMode?
+      flashMode: CameraXFlashMode?,
+      jpegQuality: Long?
   ): androidx.camera.core.ImageCapture
 
   abstract fun resolutionSelector(
@@ -4264,6 +4265,19 @@ abstract class PigeonApiImageCapture(
   abstract fun takePicture(
       pigeon_instance: androidx.camera.core.ImageCapture,
       systemServicesManager: SystemServicesManager,
+      callback: (Result<String>) -> Unit
+  )
+
+  /**
+   * Hauseful patch: captures a new still image with the location written by CameraX and
+   * [rotationDegrees] added to the EXIF orientation it writes.
+   */
+  abstract fun takePictureWithMetadata(
+      pigeon_instance: androidx.camera.core.ImageCapture,
+      systemServicesManager: SystemServicesManager,
+      latitude: Double?,
+      longitude: Double?,
+      rotationDegrees: Long,
       callback: (Result<String>) -> Unit
   )
 
@@ -4288,11 +4302,12 @@ abstract class PigeonApiImageCapture(
                 args[1] as androidx.camera.core.resolutionselector.ResolutionSelector?
             val targetRotationArg = args[2] as Long?
             val flashModeArg = args[3] as CameraXFlashMode?
+            val jpegQualityArg = args[4] as Long?
             val wrapped: List<Any?> =
                 try {
                   api.pigeonRegistrar.instanceManager.addDartCreatedInstance(
                       api.pigeon_defaultConstructor(
-                          resolutionSelectorArg, targetRotationArg, flashModeArg),
+                          resolutionSelectorArg, targetRotationArg, flashModeArg, jpegQualityArg),
                       pigeon_identifierArg)
                   listOf(null)
                 } catch (exception: Throwable) {
@@ -4349,6 +4364,39 @@ abstract class PigeonApiImageCapture(
                 reply.reply(CameraXLibraryPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel =
+            BasicMessageChannel<Any?>(
+                binaryMessenger,
+                "dev.flutter.pigeon.camera_android_camerax.ImageCapture.takePictureWithMetadata",
+                codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val pigeon_instanceArg = args[0] as androidx.camera.core.ImageCapture
+            val systemServicesManagerArg = args[1] as SystemServicesManager
+            val latitudeArg = args[2] as Double?
+            val longitudeArg = args[3] as Double?
+            val rotationDegreesArg = args[4] as Long
+            api.takePictureWithMetadata(
+                pigeon_instanceArg,
+                systemServicesManagerArg,
+                latitudeArg,
+                longitudeArg,
+                rotationDegreesArg) { result: Result<String> ->
+                  val error = result.exceptionOrNull()
+                  if (error != null) {
+                    reply.reply(CameraXLibraryPigeonUtils.wrapError(error))
+                  } else {
+                    val data = result.getOrNull()
+                    reply.reply(CameraXLibraryPigeonUtils.wrapResult(data))
+                  }
+                }
           }
         } else {
           channel.setMessageHandler(null)

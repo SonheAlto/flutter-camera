@@ -197,6 +197,7 @@ void main() {
           int? targetRotation,
           CameraXFlashMode? flashMode,
           ResolutionSelector? resolutionSelector,
+          int? jpegQuality,
         }) {
           final mockImageCapture = MockImageCapture();
           when(
@@ -630,6 +631,7 @@ void main() {
             int? targetRotation,
             CameraXFlashMode? flashMode,
             ResolutionSelector? resolutionSelector,
+            int? jpegQuality,
           }) {
             return mockImageCapture;
           };
@@ -1281,6 +1283,7 @@ void main() {
             int? targetRotation,
             CameraXFlashMode? flashMode,
             ResolutionSelector? resolutionSelector,
+            int? jpegQuality,
           }) {
             return mockImageCapture;
           };
@@ -1771,6 +1774,7 @@ void main() {
             int? targetRotation,
             CameraXFlashMode? flashMode,
             ResolutionSelector? resolutionSelector,
+            int? jpegQuality,
           }) {
             return mockImageCapture;
           };
@@ -2195,6 +2199,7 @@ void main() {
           int? targetRotation,
           CameraXFlashMode? flashMode,
           ResolutionSelector? resolutionSelector,
+          int? jpegQuality,
         }) => mockImageCapture;
     PigeonOverrides.recorder_new =
         ({
@@ -3364,6 +3369,7 @@ void main() {
             CameraXFlashMode? flashMode,
             ResolutionSelector? resolutionSelector,
             int? targetRotation,
+            int? jpegQuality,
           }) {
             return mockImageCapture;
           };
@@ -3627,6 +3633,7 @@ void main() {
             CameraXFlashMode? flashMode,
             ResolutionSelector? resolutionSelector,
             int? targetRotation,
+            int? jpegQuality,
           }) {
             return mockImageCapture;
           };

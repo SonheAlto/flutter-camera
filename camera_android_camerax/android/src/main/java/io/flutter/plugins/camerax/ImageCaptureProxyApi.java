@@ -4,11 +4,14 @@
 
 package io.flutter.plugins.camerax;
 
+import android.location.Location;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.resolutionselector.ResolutionSelector;
+import androidx.exifinterface.media.ExifInterface;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -40,8 +43,13 @@ class ImageCaptureProxyApi extends PigeonApiImageCapture {
   public ImageCapture pigeon_defaultConstructor(
       @Nullable ResolutionSelector resolutionSelector,
       @Nullable Long targetRotation,
-      @Nullable CameraXFlashMode flashMode) {
+      @Nullable CameraXFlashMode flashMode,
+      @Nullable Long jpegQuality) {
     final ImageCapture.Builder builder = new ImageCapture.Builder();
+    // Hauseful patch: the JPEG quality of captured photos.
+    if (jpegQuality != null) {
+      builder.setJpegQuality(jpegQuality.intValue());
+    }
     if (targetRotation != null) {
       builder.setTargetRotation(targetRotation.intValue());
     }
@@ -103,6 +111,107 @@ class ImageCaptureProxyApi extends PigeonApiImageCapture {
 
     pigeonInstance.takePicture(
         outputFileOptions, Executors.newSingleThreadExecutor(), onImageSavedCallback);
+  }
+
+  // Hauseful patch: a capture with its metadata written into the photo, so the
+  // app doesn't rewrite the file afterwards. CameraX writes the location in the
+  // same save; the orientation is updated in the EXIF alone, without
+  // re-encoding the image, and only when it changes.
+  @Override
+  public void takePictureWithMetadata(
+      @NonNull ImageCapture pigeonInstance,
+      @NonNull SystemServicesManager systemServicesManager,
+      @Nullable Double latitude,
+      @Nullable Double longitude,
+      long rotationDegrees,
+      @NonNull Function1<? super Result<String>, Unit> callback) {
+    final File outputDir = getPigeonRegistrar().getContext().getCacheDir();
+    File temporaryCaptureFile;
+    try {
+      temporaryCaptureFile = File.createTempFile(TEMPORARY_FILE_NAME, JPG_FILE_TYPE, outputDir);
+    } catch (IOException | SecurityException e) {
+      ResultCompat.failure(e, callback);
+      return;
+    }
+
+    final ImageCapture.Metadata metadata = new ImageCapture.Metadata();
+    if (latitude != null && longitude != null) {
+      final Location location = new Location("");
+      location.setLatitude(latitude);
+      location.setLongitude(longitude);
+      location.setTime(System.currentTimeMillis());
+      metadata.setLocation(location);
+    }
+    final ImageCapture.OutputFileOptions outputFileOptions =
+        new ImageCapture.OutputFileOptions.Builder(temporaryCaptureFile)
+            .setMetadata(metadata)
+            .build();
+
+    final File file = temporaryCaptureFile;
+    final ImageCapture.OnImageSavedCallback onImageSavedCallback =
+        new ImageCapture.OnImageSavedCallback() {
+          @Override
+          public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+            addRotationToExifOrientation(file, rotationDegrees);
+            ResultCompat.success(file.getAbsolutePath(), callback);
+          }
+
+          @Override
+          public void onError(@NonNull ImageCaptureException exception) {
+            systemServicesManager.onCameraError(
+                getImageCaptureExceptionDescription(exception.getImageCaptureError()));
+            ResultCompat.failure(exception, callback);
+          }
+        };
+
+    pigeonInstance.takePicture(
+        outputFileOptions, Executors.newSingleThreadExecutor(), onImageSavedCallback);
+  }
+
+  /**
+   * Hauseful patch: adds {@code rotationDegrees} (clockwise, possibly negative) to the photo's EXIF
+   * orientation, rewriting the file only when the orientation changes. A failure is logged and the
+   * photo is kept as CameraX wrote it.
+   */
+  static void addRotationToExifOrientation(@NonNull File file, long rotationDegrees) {
+    try {
+      final ExifInterface exif = new ExifInterface(file.getAbsolutePath());
+      final int current =
+          exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+      final int updated = orientationWithRotation(current, rotationDegrees);
+      if (updated == current) return;
+      exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(updated));
+      exif.saveAttributes();
+    } catch (IOException | RuntimeException e) {
+      Log.w("ImageCaptureProxyApi", "Failed to update the photo's EXIF orientation", e);
+    }
+  }
+
+  /**
+   * Hauseful patch: the EXIF orientation {@code exifOrientation} turned by {@code rotationDegrees}.
+   * Only the four rotations count: 1, 6, 3 and 8 stand for 0, 90, 180 and 270 degrees, and any
+   * other value (a mirrored one) for 0.
+   */
+  static int orientationWithRotation(int exifOrientation, long rotationDegrees) {
+    final int currentDegrees;
+    switch (exifOrientation) {
+      case ExifInterface.ORIENTATION_ROTATE_90:
+        currentDegrees = 90;
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_180:
+        currentDegrees = 180;
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_270:
+        currentDegrees = 270;
+        break;
+      default:
+        currentDegrees = 0;
+    }
+    final long combined = ((currentDegrees + rotationDegrees) % 360 + 360) % 360;
+    if (combined == 90) return ExifInterface.ORIENTATION_ROTATE_90;
+    if (combined == 180) return ExifInterface.ORIENTATION_ROTATE_180;
+    if (combined == 270) return ExifInterface.ORIENTATION_ROTATE_270;
+    return ExifInterface.ORIENTATION_NORMAL;
   }
 
   @Override

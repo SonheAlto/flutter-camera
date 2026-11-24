@@ -85,6 +85,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:${cameraxVersion}")
     implementation("androidx.camera:camera-video:${cameraxVersion}")
     implementation("com.google.guava:guava:33.5.0-android")
+    // Hauseful patch: updates a captured photo's EXIF orientation in place.
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.23.0")
     testImplementation("org.mockito:mockito-inline:5.2.0")

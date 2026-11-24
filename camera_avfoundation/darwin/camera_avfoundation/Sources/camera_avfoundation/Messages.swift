@@ -840,6 +840,12 @@ protocol CameraApi {
   /// Takes a picture with the current settings, and returns the path to the
   /// resulting file.
   func takePicture(completion: @escaping (Result<String, Error>) -> Void)
+  /// Hauseful patch: takes a picture with the given output settings and
+  /// metadata, written to disk once, and returns the path to the resulting
+  /// file.
+  func takePictureWithOptions(
+    maxLongSide: Int64?, jpegQuality: Int64?, rotationDegrees: Int64, latitude: Double?,
+    longitude: Double?, completion: @escaping (Result<String, Error>) -> Void)
   /// Does any preprocessing necessary before beginning to record video.
   func prepareForVideoRecording(completion: @escaping (Result<Void, Error>) -> Void)
   /// Begins recording video, optionally enabling streaming to Dart at the same
@@ -1106,6 +1112,36 @@ class CameraApiSetup {
       }
     } else {
       takePictureChannel.setMessageHandler(nil)
+    }
+    /// Hauseful patch: takes a picture with the given output settings and
+    /// metadata, written to disk once, and returns the path to the resulting
+    /// file.
+    let takePictureWithOptionsChannel = FlutterBasicMessageChannel(
+      name:
+        "dev.flutter.pigeon.camera_avfoundation.CameraApi.takePictureWithOptions\(channelSuffix)",
+      binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      takePictureWithOptionsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let maxLongSideArg: Int64? = nilOrValue(args[0])
+        let jpegQualityArg: Int64? = nilOrValue(args[1])
+        let rotationDegreesArg = args[2] as! Int64
+        let latitudeArg: Double? = nilOrValue(args[3])
+        let longitudeArg: Double? = nilOrValue(args[4])
+        api.takePictureWithOptions(
+          maxLongSide: maxLongSideArg, jpegQuality: jpegQualityArg,
+          rotationDegrees: rotationDegreesArg, latitude: latitudeArg, longitude: longitudeArg
+        ) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      takePictureWithOptionsChannel.setMessageHandler(nil)
     }
     /// Does any preprocessing necessary before beginning to record video.
     let prepareForVideoRecordingChannel = FlutterBasicMessageChannel(

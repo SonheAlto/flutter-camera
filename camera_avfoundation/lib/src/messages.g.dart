@@ -894,6 +894,40 @@ class CameraApi {
     return pigeonVar_replyValue! as String;
   }
 
+  /// Hauseful patch: takes a picture with the given output settings and
+  /// metadata, written to disk once, and returns the path to the resulting
+  /// file.
+  Future<String> takePictureWithOptions(
+    int? maxLongSide,
+    int? jpegQuality,
+    int rotationDegrees,
+    double? latitude,
+    double? longitude,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.camera_avfoundation.CameraApi.takePictureWithOptions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[
+      maxLongSide,
+      jpegQuality,
+      rotationDegrees,
+      latitude,
+      longitude,
+    ]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
+  }
+
   /// Does any preprocessing necessary before beginning to record video.
   Future<void> prepareForVideoRecording() async {
     final pigeonVar_channelName =

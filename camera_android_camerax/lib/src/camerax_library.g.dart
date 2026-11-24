@@ -123,6 +123,7 @@ class PigeonOverrides {
     ResolutionSelector? resolutionSelector,
     int? targetRotation,
     CameraXFlashMode? flashMode,
+    int? jpegQuality,
   })?
   imageCapture_new;
 
@@ -5118,12 +5119,14 @@ class ImageCapture extends UseCase {
     ResolutionSelector? resolutionSelector,
     int? targetRotation,
     CameraXFlashMode? flashMode,
+    int? jpegQuality,
   }) {
     if (PigeonOverrides.imageCapture_new != null) {
       return PigeonOverrides.imageCapture_new!(
         resolutionSelector: resolutionSelector,
         targetRotation: targetRotation,
         flashMode: flashMode,
+        jpegQuality: jpegQuality,
       );
     }
     return ImageCapture.pigeon_new(
@@ -5132,6 +5135,7 @@ class ImageCapture extends UseCase {
       resolutionSelector: resolutionSelector,
       targetRotation: targetRotation,
       flashMode: flashMode,
+      jpegQuality: jpegQuality,
     );
   }
 
@@ -5142,6 +5146,7 @@ class ImageCapture extends UseCase {
     this.resolutionSelector,
     int? targetRotation,
     CameraXFlashMode? flashMode,
+    int? jpegQuality,
   }) : super.pigeon_detached() {
     final int pigeonVar_instanceIdentifier = pigeon_instanceManager
         .addDartCreatedInstance(this);
@@ -5155,14 +5160,14 @@ class ImageCapture extends UseCase {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[
-        pigeonVar_instanceIdentifier,
-        resolutionSelector,
-        targetRotation,
-        flashMode,
-      ],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+          pigeonVar_instanceIdentifier,
+          resolutionSelector,
+          targetRotation,
+          flashMode,
+          jpegQuality,
+        ]);
     () async {
       final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
       if (pigeonVar_replyList == null) {
@@ -5298,6 +5303,52 @@ class ImageCapture extends UseCase {
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
       <Object?>[this, systemServicesManager],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as String?)!;
+    }
+  }
+
+  /// Hauseful patch: captures a new still image with the location written by
+  /// CameraX and [rotationDegrees] added to the EXIF orientation it writes.
+  Future<String> takePictureWithMetadata(
+    SystemServicesManager systemServicesManager,
+    double? latitude,
+    double? longitude,
+    int rotationDegrees,
+  ) async {
+    final _PigeonInternalProxyApiBaseCodec pigeonChannelCodec =
+        _pigeonVar_codecImageCapture;
+    final BinaryMessenger? pigeonVar_binaryMessenger = pigeon_binaryMessenger;
+    const pigeonVar_channelName =
+        'dev.flutter.pigeon.camera_android_camerax.ImageCapture.takePictureWithMetadata';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[
+        this,
+        systemServicesManager,
+        latitude,
+        longitude,
+        rotationDegrees,
+      ],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {

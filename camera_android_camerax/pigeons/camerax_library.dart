@@ -598,7 +598,12 @@ enum CameraXFlashMode {
   ),
 )
 abstract class ImageCapture extends UseCase {
-  ImageCapture(int? targetRotation, CameraXFlashMode? flashMode);
+  // Hauseful patch: jpegQuality, the JPEG quality of captured photos.
+  ImageCapture(
+    int? targetRotation,
+    CameraXFlashMode? flashMode,
+    int? jpegQuality,
+  );
 
   late final ResolutionSelector? resolutionSelector;
 
@@ -608,6 +613,16 @@ abstract class ImageCapture extends UseCase {
   /// Captures a new still image for in memory access.
   @async
   String takePicture(SystemServicesManager systemServicesManager);
+
+  /// Hauseful patch: captures a new still image with the location written by
+  /// CameraX and [rotationDegrees] added to the EXIF orientation it writes.
+  @async
+  String takePictureWithMetadata(
+    SystemServicesManager systemServicesManager,
+    double? latitude,
+    double? longitude,
+    int rotationDegrees,
+  );
 
   /// Sets the desired rotation of the output image.
   void setTargetRotation(int rotation);

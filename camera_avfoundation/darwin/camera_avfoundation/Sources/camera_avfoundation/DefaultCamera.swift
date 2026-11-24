@@ -812,6 +812,15 @@ final class DefaultCamera: NSObject, Camera {
   }
 
   func captureToFile(completion: @escaping (Result<String, any Error>) -> Void) {
+    captureToFile(options: nil, completion: completion)
+  }
+
+  // Hauseful patch: `options` sets the photo's JPEG quality here and its size
+  // and metadata in `SavePhotoDelegate`, before it is written. A photo taken
+  // with options is always JPEG.
+  func captureToFile(
+    options: PhotoCaptureOptions?, completion: @escaping (Result<String, any Error>) -> Void
+  ) {
     var settings = AVCapturePhotoSettings()
 
     let fileExtension: String
@@ -819,16 +828,17 @@ final class DefaultCamera: NSObject, Camera {
     let isHEVCCodecAvailable = capturePhotoOutput.availablePhotoCodecTypes.contains(
       .hevc)
 
-    if fileFormat == .heif, isHEVCCodecAvailable {
+    if fileFormat == .heif, isHEVCCodecAvailable, options == nil {
       settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
       fileExtension = "heif"
     } else {
       fileExtension = "jpg"
-      if imageQuality < 100 {
+      let quality = options?.jpegQuality.map { Int64($0) } ?? imageQuality
+      if quality < 100 {
         settings = AVCapturePhotoSettings(format: [
           AVVideoCodecKey: AVVideoCodecType.jpeg,
           AVVideoCompressionPropertiesKey: [
-            AVVideoQualityKey: CGFloat(imageQuality) / 100.0
+            AVVideoQualityKey: CGFloat(quality) / 100.0
           ],
         ])
       }
@@ -860,6 +870,7 @@ final class DefaultCamera: NSObject, Camera {
     let savePhotoDelegate = SavePhotoDelegate(
       path: path,
       ioQueue: photoIOQueue,
+      options: options,
       completionHandler: { [weak self] path, error in
         guard let strongSelf = self else { return }
 

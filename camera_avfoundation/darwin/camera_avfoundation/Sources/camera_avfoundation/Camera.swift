@@ -58,6 +58,11 @@ protocol Camera: FlutterTexture, AVCaptureVideoDataOutputSampleBufferDelegate,
 
   func captureToFile(completion: @escaping (Result<String, any Error>) -> Void)
 
+  /// Hauseful patch: captures a photo with `options` applied before it is
+  /// written; nil behaves as `captureToFile(completion:)`.
+  func captureToFile(
+    options: PhotoCaptureOptions?, completion: @escaping (Result<String, any Error>) -> Void)
+
   func lockCaptureOrientation(_ orientation: PlatformDeviceOrientation)
   func unlockCaptureOrientation()
 

@@ -136,6 +136,28 @@ abstract class CameraPlatform extends PlatformInterface {
     throw UnimplementedError('takePicture() is not implemented.');
   }
 
+  // Hauseful patch: photo capture options.
+
+  /// Sets how still photos are produced: their largest side and JPEG quality.
+  ///
+  /// Applies to cameras created after this call (Android sizes photos when
+  /// the camera is set up) and to every later capture.
+  Future<void> setPhotoOutputSettings(PhotoOutputSettings settings) {
+    throw UnimplementedError('setPhotoOutputSettings() is not implemented.');
+  }
+
+  /// Captures an image with [metadata] written into it, and returns the file
+  /// where it was saved.
+  ///
+  /// The photo follows the latest [setPhotoOutputSettings] and is written to
+  /// disk once, already final.
+  Future<XFile> takePictureWithMetadata(
+    int cameraId,
+    PhotoCaptureMetadata metadata,
+  ) {
+    throw UnimplementedError('takePictureWithMetadata() is not implemented.');
+  }
+
   /// Prepare the capture session for video recording.
   Future<void> prepareForVideoRecording() {
     throw UnimplementedError('prepareForVideoRecording() is not implemented.');

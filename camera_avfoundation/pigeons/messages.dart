@@ -241,6 +241,18 @@ abstract class CameraApi {
   @async
   String takePicture();
 
+  /// Hauseful patch: takes a picture with the given output settings and
+  /// metadata, written to disk once, and returns the path to the resulting
+  /// file.
+  @async
+  String takePictureWithOptions(
+    int? maxLongSide,
+    int? jpegQuality,
+    int rotationDegrees,
+    double? latitude,
+    double? longitude,
+  );
+
   /// Does any preprocessing necessary before beginning to record video.
   @async
   void prepareForVideoRecording();

@@ -1,6 +1,6 @@
 # What this fork changes
 
-Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 8 code files across 3 packages, 190 added lines, 6 replaced.
+Everything in this repository is the official Flutter `camera` plugin code, unchanged, except for the changes listed here. This is the full list: 25 files across 3 packages (including generated Pigeon code and tests), 978 added lines, 24 replaced.
 
 | Package | Upstream version |
 |---|---|
@@ -27,8 +27,9 @@ git diff upstream main -- camera_platform_interface camera_android_camerax camer
 3. **iOS picks a full-detail 4:3 camera format** for them, skipping the soft "binned" ones.
 4. **Android preview stabilization** (Android 13+) offered as a second stabilization level.
 5. **Android honors the video bitrate** passed in `MediaSettings.videoBitrate`.
+6. **Photo capture options:** a photo can come out of the camera already final, with a largest side, a JPEG quality, an orientation and a GPS position, written to disk once.
 
-Nothing else is changed: capture, focus, zoom, flash and every other behavior are the official code.
+Nothing else is changed: focus, zoom, flash and every other behavior are the official code, and `takePicture` itself still works as before.
 
 ## 1. The new presets: `camera_platform_interface`
 
@@ -49,7 +50,7 @@ These sizes are targets. Each platform picks the closest size the device has, an
 
 ## 2. Android: `camera_android_camerax`
 
-One file changed, `lib/src/android_camera_camerax.dart`, in Dart only. There's no Kotlin or Java change.
+For the changes below, one file changed, `lib/src/android_camera_camerax.dart`, in Dart only. The photo capture options (section 4) also touch Java, the Pigeon files and Gradle.
 
 **Photos: the preset's size, at a 4:3 aspect ratio** (`_getResolutionSelectorFromPreset`)
 - Official: `high` asks CameraX for 1280×720 with a 16:9 aspect ratio strategy.
@@ -92,11 +93,35 @@ On iOS, the official presets set an `AVCaptureSession` preset, such as `.hd1280x
 - `PlatformResolutionPreset` gets the three new values (`high4x3 = 6`, `veryHigh4x3 = 7`, `ultraHigh4x3 = 8`), and `_pigeonResolutionPreset` maps the Dart presets to them.
 - `Messages.swift` and `messages.g.dart` are generated from `pigeons/messages.dart`. All three were edited by hand to match, so running Pigeon again produces the same code.
 
+## 4. Photo capture options (all three packages)
+
+An app that takes hundreds of photos in a row shouldn't have to read each one back, rewrite its metadata and re-encode it. These options make the camera write the photo once, already final.
+
+**API** (`camera_platform_interface`):
+- `PhotoOutputSettings(maxLongSide, jpegQuality)` and `CameraPlatform.setPhotoOutputSettings`: how photos are produced. They apply to cameras created after the call (Android picks the photo size when the camera is set up) and to every later capture.
+- `PhotoCaptureMetadata(rotationDegrees, latitude, longitude)` and `CameraPlatform.takePictureWithMetadata(cameraId, metadata)`: takes a photo with that metadata written into it.
+- Orientation rule: `rotationDegrees` (clockwise, possibly negative) is added to the EXIF orientation the camera wrote. The orientations 1, 6, 3 and 8 stand for 0, 90, 180 and 270 degrees; any other value (a mirrored one) counts as 0. GPS gets latitude, longitude and their N/S, E/W references.
+- The `camera` package doesn't expose these; an app calls them through `CameraPlatform.instance` with the controller's `cameraId`.
+
+**Android** (`camera_android_camerax`):
+- `ImageCapture` gets its own resolution selector: the preset's one when the preset fits `maxLongSide`, otherwise the preset's aspect ratio with the size scaled down to `maxLongSide` and the closest lower size the camera has. The camera pipeline produces the photo at that size, with no CPU work; preview and video keep the preset. CameraX picks among the sizes the phone lists, so the photo can come out somewhat smaller than `maxLongSide` (e.g. 1280 wide for a 1400 limit).
+- `jpegQuality` goes to `ImageCapture.Builder.setJpegQuality`.
+- `takePictureWithMetadata` passes the location through CameraX's `ImageCapture.Metadata`, so CameraX writes it in the same save (it also writes the capture time as the GPS time). The orientation is then updated in the EXIF alone (`androidx.exifinterface`, no pixel re-encode), and only when it changes.
+- Files: `pigeons/camerax_library.dart` (an `ImageCapture` constructor parameter and one method), the generated `camerax_library.g.dart` (Pigeon 26.1.7, the version upstream used, then `dart format`) and `CameraXLibrary.g.kt` (the generator's new code added by hand in the existing ktfmt style), `ImageCaptureProxyApi.java`, `android_camera_camerax.dart`, `build.gradle.kts`, and the tests that build an `ImageCapture`.
+
+**iOS** (`camera_avfoundation`):
+- `takePictureWithOptions` (Pigeon) carries the settings and metadata as plain values, so the message codec is unchanged. `Messages.swift`, `messages.g.dart` and `pigeons/messages.dart` were edited by hand, as for the presets: the pinned Pigeon (27.3.2) doesn't resolve with the Flutter SDK in use.
+- `DefaultCamera.captureToFile(options:)` uses the options' JPEG quality for the capture and hands the options to `SavePhotoDelegate`. A photo taken with options is always JPEG.
+- `PhotoDataProcessor.swift` (new) runs on the delegate's IO queue, before the file is written:
+  - a photo within `maxLongSide` keeps the camera's encoding; only its metadata is replaced (`fileDataRepresentation(with:)`), with no re-encode;
+  - a larger one (e.g. the 3840×2160 ultra-wide) is scaled from its in-memory bytes with `CGImageSourceCreateThumbnailAtIndex` (ImageIO decodes the JPEG subsampled) and encoded once at the JPEG quality, with the metadata. The pixels keep the sensor's orientation; the EXIF orientation still describes them.
+- `Camera.swift` and the test `MockCamera.swift` gain the `captureToFile(options:)` overload.
+
 ## What is not changed
 
 - **`camera`**, the package the app imports, is untouched. It picks up these three through `dependency_overrides`.
 - **`camera_web` and the desktop packages** aren't updated for the new values. `camera_web` has `switch` statements over `ResolutionPreset` without a `default`, so it doesn't compile against the new enum. That's accepted because fhost only builds for Android and iOS.
-- **No capture-time resizing or re-encoding:** nothing in the patch touches the image after the camera produces it. An earlier version shrank iOS photos in memory; it was removed because iOS format sizes are close enough to the targets.
+- **No resizing or re-encoding outside the photo capture options:** `takePicture` and video are untouched. With the options, only iOS photos larger than `maxLongSide` are scaled and re-encoded, in memory, before they are written (an earlier version shrank every iOS photo; it was removed because most iOS format sizes are close enough to the targets).
 
 ## Updating to a new official release
 

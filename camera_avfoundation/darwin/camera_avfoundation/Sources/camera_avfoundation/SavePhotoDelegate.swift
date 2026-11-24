@@ -25,6 +25,10 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
   /// The completion handler block for capture and save photo operations.
   let completionHandler: SavePhotoDelegateCompletionHandler
 
+  /// Hauseful patch: size, quality and metadata applied to the photo before
+  /// it is written; nil writes the camera's data as is.
+  private let options: PhotoCaptureOptions?
+
   /// The path for captured photo file.
   /// Exposed for unit tests to verify the captured photo file path.
   var filePath: String {
@@ -39,10 +43,12 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
   init(
     path: String,
     ioQueue: DispatchQueue,
+    options: PhotoCaptureOptions? = nil,
     completionHandler: @escaping SavePhotoDelegateCompletionHandler
   ) {
     self.path = path
     self.ioQueue = ioQueue
+    self.options = options
     self.completionHandler = completionHandler
     super.init()
   }
@@ -78,8 +84,14 @@ class SavePhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     didFinishProcessingPhoto photo: AVCapturePhoto,
     error: Error?
   ) {
+    // Hauseful patch: with options, the photo is made final in memory (on the
+    // IO queue) before it is written.
+    let options = self.options
     handlePhotoCaptureResult(error: error) {
-      photo.fileDataRepresentation()
+      if let options = options {
+        return PhotoDataProcessor.fileData(for: photo, options: options)
+      }
+      return photo.fileDataRepresentation()
     }
   }
 }

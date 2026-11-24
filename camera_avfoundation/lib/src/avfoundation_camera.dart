@@ -28,6 +28,10 @@ class AVFoundationCamera extends CameraPlatform {
   /// Interface for calling host-side code.
   final CameraApi _hostApi;
 
+  /// Hauseful patch: how photos are produced, set by [setPhotoOutputSettings]
+  /// and sent with every [takePictureWithMetadata].
+  PhotoOutputSettings _photoOutputSettings = const PhotoOutputSettings();
+
   /// The controller we need to broadcast the different events coming
   /// from handleMethodCall, specific to camera events.
   ///
@@ -180,6 +184,31 @@ class AVFoundationCamera extends CameraPlatform {
   @override
   Future<XFile> takePicture(int cameraId) async {
     final String path = await _hostApi.takePicture();
+    return XFile(path);
+  }
+
+  /// Hauseful patch: sets how photos are produced, applied to every later
+  /// [takePictureWithMetadata].
+  @override
+  Future<void> setPhotoOutputSettings(PhotoOutputSettings settings) async {
+    _photoOutputSettings = settings;
+  }
+
+  /// Hauseful patch: captures an image with [metadata] written into it,
+  /// scaled down in memory first when it exceeds the photo output settings'
+  /// longest side, and written to disk once.
+  @override
+  Future<XFile> takePictureWithMetadata(
+    int cameraId,
+    PhotoCaptureMetadata metadata,
+  ) async {
+    final String path = await _hostApi.takePictureWithOptions(
+      _photoOutputSettings.maxLongSide,
+      _photoOutputSettings.jpegQuality,
+      metadata.rotationDegrees,
+      metadata.latitude,
+      metadata.longitude,
+    );
     return XFile(path);
   }
 

@@ -282,6 +282,10 @@ class AndroidCameraCameraX extends CameraPlatform {
   /// The preset resolution selector for the camera.
   ResolutionSelector? _presetResolutionSelector;
 
+  /// Hauseful patch: how photos are produced, set by [setPhotoOutputSettings]
+  /// and applied to the cameras created after it.
+  PhotoOutputSettings _photoOutputSettings = const PhotoOutputSettings();
+
   /// The configured target FPS range for the camera.
   CameraIntegerRange? _targetFpsRange;
 
@@ -420,10 +424,16 @@ class AndroidCameraCameraX extends CameraPlatform {
     );
 
     // Configure ImageCapture instance.
+    // Hauseful patch: photos get their own size, bounded by the photo output
+    // settings' longest side, and their JPEG quality.
     imageCapture = ImageCapture(
-      resolutionSelector: _presetResolutionSelector,
+      resolutionSelector: _getPhotoResolutionSelector(
+        mediaSettings?.resolutionPreset,
+        _photoOutputSettings.maxLongSide,
+      ),
       /* use CameraX default target rotation */ targetRotation:
           await deviceOrientationManager.getDefaultDisplayRotation(),
+      jpegQuality: _photoOutputSettings.jpegQuality,
     );
 
     // Configure VideoCapture and Recorder instances.
@@ -1101,6 +1111,44 @@ class AndroidCameraCameraX extends CameraPlatform {
     return XFile(picturePath);
   }
 
+  /// Hauseful patch: sets how photos are produced. Applies to the cameras
+  /// created after this call, since the photo size is chosen when the camera
+  /// is set up.
+  @override
+  Future<void> setPhotoOutputSettings(PhotoOutputSettings settings) async {
+    _photoOutputSettings = settings;
+  }
+
+  /// Hauseful patch: captures an image with [metadata] written into it.
+  ///
+  /// CameraX writes the location in the same save; the orientation is
+  /// adjusted in the EXIF alone, without re-encoding the image.
+  @override
+  Future<XFile> takePictureWithMetadata(
+    int cameraId,
+    PhotoCaptureMetadata metadata,
+  ) async {
+    await _bindUseCaseToLifecycle(imageCapture!, cameraId);
+    if (_currentFlashMode != null) {
+      await imageCapture!.setFlashMode(_currentFlashMode!);
+    } else if (torchEnabled) {
+      await imageCapture!.setFlashMode(CameraXFlashMode.off);
+    }
+    if (!captureOrientationLocked) {
+      await imageCapture!.setTargetRotation(
+        await deviceOrientationManager.getDefaultDisplayRotation(),
+      );
+    }
+
+    final String picturePath = await imageCapture!.takePictureWithMetadata(
+      systemServicesManager,
+      metadata.latitude,
+      metadata.longitude,
+      metadata.rotationDegrees,
+    );
+    return XFile(picturePath);
+  }
+
   /// Sets the flash mode for the camera with ID [cameraId].
   ///
   /// When the [FlashMode.torch] is enabled, any previously set [FlashMode] with
@@ -1652,6 +1700,51 @@ class AndroidCameraCameraX extends CameraPlatform {
       resolutionStrategy: resolutionStrategy,
       resolutionFilter: resolutionFilter,
       aspectRatioStrategy: aspectRatioStrategy,
+    );
+  }
+
+  /// Hauseful patch: the resolution selector for photos.
+  ///
+  /// The preset's own selector when its size fits [maxLongSide] (or there is
+  /// no limit); otherwise the preset's aspect ratio with its size scaled down
+  /// to [maxLongSide], falling back to the closest lower size the camera has.
+  /// Preview and video keep the preset's selector.
+  ResolutionSelector? _getPhotoResolutionSelector(
+    ResolutionPreset? preset,
+    int? maxLongSide,
+  ) {
+    final ResolutionSelector? presetSelector =
+        _getResolutionSelectorFromPreset(preset);
+    final CameraSize? presetSize = switch (preset) {
+      ResolutionPreset.high => CameraSize(width: 1280, height: 720),
+      ResolutionPreset.veryHigh => CameraSize(width: 1920, height: 1080),
+      ResolutionPreset.ultraHigh => CameraSize(width: 3840, height: 2160),
+      ResolutionPreset.high4x3 => CameraSize(width: 1280, height: 960),
+      ResolutionPreset.veryHigh4x3 => CameraSize(width: 1920, height: 1440),
+      ResolutionPreset.ultraHigh4x3 => CameraSize(width: 3264, height: 2448),
+      _ => null,
+    };
+    if (maxLongSide == null ||
+        presetSize == null ||
+        presetSize.width <= maxLongSide) {
+      return presetSelector;
+    }
+
+    final CameraSize boundSize = CameraSize(
+      width: maxLongSide,
+      height: presetSize.height * maxLongSide ~/ presetSize.width,
+    );
+    return ResolutionSelector(
+      resolutionStrategy: ResolutionStrategy(
+        boundSize: boundSize,
+        fallbackRule: ResolutionStrategyFallbackRule.closestLower,
+      ),
+      aspectRatioStrategy: AspectRatioStrategy(
+        preferredAspectRatio: _isFourByThreePreset(preset)
+            ? AspectRatio.ratio4To3
+            : AspectRatio.ratio16To9,
+        fallbackRule: AspectRatioStrategyFallbackRule.auto,
+      ),
     );
   }
 

@@ -133,6 +133,13 @@ final class MockCamera: NSObject, Camera {
     captureToFileStub?(completion)
   }
 
+  // Hauseful patch: photo capture options.
+  func captureToFile(
+    options: PhotoCaptureOptions?, completion: @escaping (Result<String, any Error>) -> Void
+  ) {
+    captureToFileStub?(completion)
+  }
+
   func lockCaptureOrientation(_ orientation: PlatformDeviceOrientation) {
     lockCaptureOrientationStub?(orientation)
   }
